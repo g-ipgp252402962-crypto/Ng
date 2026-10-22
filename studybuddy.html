@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Buddy Bot 📚</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f1a;
+      --surface: #1a1a2e;
+      --surface2: #16213e;
+      --border: #2a2a4a;
+      --accent: #7c3aed;
+      --accent2: #a855f7;
+      --accent-glow: rgba(124,58,237,0.28);
+      --bot-bubble: #1e1e3a;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --wa-green: #25d366;
+      --radius: 18px;
+    }
+
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 13px 18px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.5);
+    }
+    .avatar {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .hinfo h1 { font-size: 15px; font-weight: 700; }
+    .hinfo p {
+      font-size: 11px; color: var(--success);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .hinfo p::before {
+      content: ''; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--success); display: inline-block;
+    }
+    .reset-btn {
+      margin-left: auto;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); padding: 5px 13px;
+      border-radius: 20px; font-size: 12px; cursor: pointer;
+      transition: all .2s;
+    }
+    .reset-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+    /* ── Topics bar ── */
+    .topics-bar {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 14px;
+      display: flex; gap: 7px;
+      overflow-x: auto; flex-shrink: 0;
+      scrollbar-width: none;
+    }
+    .topics-bar::-webkit-scrollbar { display: none; }
+    .chip {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); padding: 4px 13px;
+      border-radius: 20px; font-size: 12px; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0; transition: all .2s;
+    }
+    .chip:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(124,58,237,.1); }
+
+    /* ── Chat window ── */
+    #chat {
+      flex: 1; overflow-y: auto;
+      padding: 18px 14px;
+      display: flex; flex-direction: column; gap: 11px;
+      scroll-behavior: smooth;
+    }
+    #chat::-webkit-scrollbar { width: 4px; }
+    #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ── Message rows ── */
+    .row {
+      display: flex; align-items: flex-end; gap: 8px;
+      animation: fadeUp .22s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .row.user { flex-direction: row-reverse; }
+    .mavatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0; margin-bottom: 2px;
+    }
+    .row.bot  .mavatar { background: linear-gradient(135deg,var(--accent),var(--accent2)); }
+    .row.user .mavatar { background: #374151; }
+
+    .bubble {
+      max-width: 76%; padding: 11px 15px;
+      border-radius: var(--radius); font-size: 14px;
+      line-height: 1.65; white-space: pre-wrap; word-break: break-word;
+    }
+    .row.bot  .bubble {
+      background: var(--bot-bubble); border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+    .row.user .bubble {
+      background: var(--accent); border-bottom-right-radius: 4px;
+      box-shadow: 0 0 18px var(--accent-glow);
+    }
+    .bubble b  { font-weight: 700; color: var(--accent2); }
+    .bubble em { color: var(--muted); font-style: italic; }
+
+    /* WhatsApp escalation card */
+    .wa-card {
+      background: rgba(37,211,102,.07);
+      border: 1px solid rgba(37,211,102,.35);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-top: 4px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .wa-card p { font-size: 13px; line-height: 1.6; color: var(--text); }
+    .wa-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--wa-green); color: #fff;
+      border: none; border-radius: 24px;
+      padding: 10px 20px; font-size: 13px; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+      width: fit-content; transition: opacity .2s;
+    }
+    .wa-btn:hover { opacity: .88; }
+    .wa-icon { width: 18px; height: 18px; fill: #fff; flex-shrink: 0; }
+
+    /* Typing dots */
+    .typing-row { display: flex; align-items: flex-end; gap: 8px; }
+    .typing-bub {
+      background: var(--bot-bubble); border: 1px solid var(--border);
+      padding: 13px 17px; border-radius: var(--radius);
+      border-bottom-left-radius: 4px;
+      display: flex; gap: 5px; align-items: center;
+    }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--muted); animation: bounce 1.2s infinite;
+    }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce {
+      0%,80%,100% { transform: translateY(0); opacity:.4; }
+      40%          { transform: translateY(-6px); opacity:1; }
+    }
+
+    /* ── Quick replies ── */
+    #qr { padding: 7px 14px; display: flex; gap: 7px; flex-wrap: wrap; flex-shrink: 0; }
+    .qbtn {
+      background: rgba(124,58,237,.12); border: 1px solid var(--accent);
+      color: var(--accent2); padding: 5px 13px;
+      border-radius: 20px; font-size: 12px; cursor: pointer; transition: all .2s;
+    }
+    .qbtn:hover { background: rgba(124,58,237,.3); }
+
+    /* ── Input bar ── */
+    .ibar {
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 11px 14px; display: flex; gap: 9px;
+      align-items: flex-end; flex-shrink: 0;
+    }
+    #inp {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 22px; padding: 11px 16px;
+      color: var(--text); font-size: 14px; resize: none;
+      outline: none; font-family: inherit;
+      max-height: 110px; line-height: 1.5;
+      transition: border-color .2s;
+    }
+    #inp:focus { border-color: var(--accent2); box-shadow: 0 0 0 3px var(--accent-glow); }
+    #inp::placeholder { color: var(--muted); }
+    #sbtn {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg,var(--accent),var(--accent2));
+      border: none; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; box-shadow: 0 0 14px var(--accent-glow);
+      transition: transform .15s;
+    }
+    #sbtn:hover { transform: scale(1.08); }
+    #sbtn:active { transform: scale(.95); }
+    #sbtn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    #sbtn svg { fill: white; }
+
+    @media(max-width:480px) {
+      .bubble { max-width: 89%; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="avatar">📚</div>
+  <div class="hinfo">
+    <h1>Study Buddy Bot</h1>
+    <p>Online · Maths Tutor</p>
+  </div>
+  <button class="reset-btn" onclick="resetChat()">↺ Reset</button>
+</header>
+
+<div class="topics-bar">
+  <button class="chip" onclick="sq('Explain algebra')">Algebra</button>
+  <button class="chip" onclick="sq('Explain fractions')">Fractions</button>
+  <button class="chip" onclick="sq('Explain geometry')">Geometry</button>
+  <button class="chip" onclick="sq('Explain statistics')">Statistics</button>
+  <button class="chip" onclick="sq('Explain probability')">Probability</button>
+  <button class="chip" onclick="sq('Explain trigonometry')">Trigonometry</button>
+  <button class="chip" onclick="sq('Explain calculus')">Calculus</button>
+</div>
+
+<div id="chat" role="log" aria-live="polite"></div>
+<div id="qr"></div>
+
+<div class="ibar">
+  <textarea id="inp" rows="1" placeholder="Ask me anything about maths…" aria-label="Type your message"></textarea>
+  <button id="sbtn" onclick="send()" aria-label="Send">
+    <svg width="19" height="19" viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+  </button>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  BOT LOGIC  (ported from logic.js — pure JS, no server needed)
+// ════════════════════════════════════════════════════════════════
+
+const WA_NUMBER = "60109485926"; // Malaysian format: +60 (remove leading 0)
+const WA_MESSAGE = encodeURIComponent("Hi, I need help with my studies. A student has been referred to you from Study Buddy Bot.");
+
+const TOPICS = {
+  algebra: {
+    explain: `📐 *Algebra* is all about using letters (variables) to represent unknown numbers and finding their values.\n\n*Key ideas:*\n• Variables: x, y, z stand in for numbers\n• Equations: e.g. 2x + 3 = 7 → solve for x\n• Step-by-step: move constants to one side, isolate the variable\n\n*Example:* Solve 2x + 3 = 7\n1. Subtract 3 from both sides → 2x = 4\n2. Divide both sides by 2 → x = 2 ✅\n\nWant some practice questions on algebra?`,
+    practice: [`🧮 Practice — Algebra:\n\n1. Solve: 3x - 5 = 10\n2. Solve: 2(x + 4) = 18\n3. If y = 3x + 1, find y when x = 4\n4. Solve: x/2 + 7 = 11\n5. Simplify: 4x + 3x - 2x\n\nTry them out and let me know if you need a hint! 💪`],
+  },
+  fractions: {
+    explain: `🍕 *Fractions* represent a part of a whole.\n\n*Key ideas:*\n• Numerator (top) — how many parts you have\n• Denominator (bottom) — total equal parts\n• Adding fractions: make denominators the same first\n\n*Example:* 1/3 + 1/6\n1. Common denominator is 6\n2. 1/3 = 2/6\n3. 2/6 + 1/6 = 3/6 = 1/2 ✅\n\nWant practice questions on fractions?`,
+    practice: [`🧮 Practice — Fractions:\n\n1. Simplify: 8/12\n2. Add: 2/5 + 1/10\n3. Subtract: 3/4 - 1/8\n4. Multiply: 2/3 × 3/4\n5. Divide: 5/6 ÷ 1/3\n\nTake your time! Ask me if you're stuck 😊`],
+  },
+  geometry: {
+    explain: `📐 *Geometry* is the study of shapes, sizes, and spaces.\n\n*Key ideas:*\n• Area — space inside a shape\n• Perimeter — distance around a shape\n• Angles — measured in degrees (°)\n\n*Common formulas:*\n• Rectangle area: length × width\n• Triangle area: ½ × base × height\n• Circle area: π × r²\n\nWant practice questions on geometry?`,
+    practice: [`🧮 Practice — Geometry:\n\n1. Find the area of a rectangle: length = 8cm, width = 5cm\n2. Find the perimeter of a square with side = 6cm\n3. A triangle has base = 10cm, height = 4cm. Find its area.\n4. What is the area of a circle with radius = 7cm? (use π ≈ 3.14)\n5. Two angles of a triangle are 60° and 80°. Find the third.\n\nGive it a go! 🎯`],
+  },
+  statistics: {
+    explain: `📊 *Statistics* is about collecting, analysing, and interpreting data.\n\n*Key ideas:*\n• Mean (average): sum of values ÷ count\n• Median: middle value when sorted\n• Mode: most frequent value\n• Range: highest − lowest\n\n*Example:* Dataset: 4, 7, 2, 7, 9\n• Mean: (4+7+2+7+9)/5 = 29/5 = 5.8\n• Median: sort → 2,4,7,7,9 → middle = 7\n• Mode: 7 (appears twice)\n• Range: 9 − 2 = 7\n\nWant practice questions on statistics?`,
+    practice: [`🧮 Practice — Statistics:\n\n1. Find the mean of: 5, 8, 3, 10, 4\n2. Find the median of: 12, 3, 7, 5, 9\n3. Find the mode of: 2, 4, 4, 5, 6, 4, 2\n4. Find the range of: 15, 7, 22, 3, 18\n5. A class scored: 70, 85, 90, 60, 75. Find mean and median.\n\nYou've got this! 💡`],
+  },
+  probability: {
+    explain: `🎲 *Probability* measures how likely an event is to happen.\n\n*Key ideas:*\n• Scale: 0 (impossible) to 1 (certain)\n• Formula: P(event) = favourable outcomes ÷ total outcomes\n\n*Example:* Rolling a fair dice — what's P(rolling a 3)?\n• Favourable outcomes: 1 (only the number 3)\n• Total outcomes: 6\n• P(3) = 1/6 ✅\n\nWant practice questions on probability?`,
+    practice: [`🧮 Practice — Probability:\n\n1. A bag has 3 red balls and 7 blue balls. P(picking red)?\n2. A fair coin is tossed. P(heads)?\n3. A dice is rolled. P(even number)?\n4. Cards 1–10. P(picking a number > 7)?\n5. P(A) = 0.4. What is P(not A)?\n\nRemember: P = favourable ÷ total 🎯`],
+  },
+  trigonometry: {
+    explain: `📏 *Trigonometry* studies the relationship between angles and sides of triangles.\n\n*Key ratios (SOH-CAH-TOA):*\n• sin(θ) = Opposite / Hypotenuse\n• cos(θ) = Adjacent / Hypotenuse\n• tan(θ) = Opposite / Adjacent\n\n*Example:* Right triangle, angle = 30°, hypotenuse = 10\n• Opposite = sin(30°) × 10 = 0.5 × 10 = 5 ✅\n\nTip: Remember SOH-CAH-TOA! Want practice questions?`,
+    practice: [`🧮 Practice — Trigonometry:\n\n1. In a right triangle, hypotenuse = 13, opposite = 5. Find sin(θ).\n2. Find cos(60°) — from memory!\n3. A ladder leans at 45°, reaches 7m high. How long is the ladder?\n4. tan(θ) = 1. What is θ?\n5. In a right triangle, adjacent = 6, hypotenuse = 10. Find cos(θ).\n\nSOH-CAH-TOA is your best friend here! 📐`],
+  },
+  calculus: {
+    explain: `∫ *Calculus* deals with change and accumulation.\n\n*Two main branches:*\n• Differentiation — finding the rate of change (slope/gradient)\n• Integration — finding the area under a curve\n\n*Basic differentiation rule:*\nIf f(x) = xⁿ, then f\'(x) = n·xⁿ⁻¹\n\n*Example:* f(x) = x³\n• f\'(x) = 3x² ✅\n\n*Basic integration rule:*\n∫xⁿ dx = xⁿ⁺¹/(n+1) + C\n\nWant practice questions on calculus?`,
+    practice: [`🧮 Practice — Calculus:\n\n1. Differentiate: f(x) = x⁴\n2. Differentiate: f(x) = 3x² + 2x + 1\n3. Integrate: ∫2x dx\n4. Integrate: ∫(3x² + 1) dx\n5. Find the gradient of y = x² at x = 3\n\nTake it step by step! 🔢`],
+  },
+};
+
+const DISHONESTY = [
+  /do my (homework|assignment|exam|test|quiz)/i,
+  /complete (this|my) (homework|assignment|exam|test|quiz)/i,
+  /answer(s)? (for|to) my (homework|assignment|exam|test|quiz)/i,
+  /write (my|this) (essay|assignment|homework)/i,
+  /solve (all|these) (for me|questions for me)/i,
+  /just give me the answers/i,
+  /finish (my|this) (homework|assignment)/i,
+];
+
+const PERSONAL = [
+  /i (feel|am feeling|am) (sad|depressed|anxious|lonely|stressed out|overwhelmed)/i,
+  /mental health/i,
+  /relationship (problem|issue|advice)/i,
+  /i (hate|want to hurt)/i,
+  /personal (problem|issue|advice)/i,
+  /family (problem|issue)/i,
+  /friend (problem|issue)/i,
+];
+
+const EXPLAIN_PAT = [
+  /explain/i, /what is/i, /what are/i, /tell me about/i,
+  /teach me/i, /help me understand/i, /i don.t understand/i,
+  /don.t get/i, /how does .* work/i, /break it down/i,
+  /step by step/i, /formula/i,
+];
+
+const PRACTICE_PAT = [
+  /practice/i, /question/i, /exercise/i, /quiz/i,
+  /test me/i, /give me (some|a few|more)/i, /example/i,
+];
+
+const GREETING_PAT = [
+  /^(hi|hello|hey|helo|hye|good morning|good afternoon|good evening|sup|yo)\b/i,
+];
+
+const HELP_PAT = [/\bhelp\b/i, /\bneed help\b/i, /\bcan you help\b/i];
+
+function detectTopic(t) {
+  t = t.toLowerCase();
+  for (const k of Object.keys(TOPICS)) { if (t.includes(k)) return k; }
+  if (/linear equation|variable|equation|inequalit/.test(t)) return "algebra";
+  if (/fraction|decimal|ratio|proportion/.test(t))           return "fractions";
+  if (/shape|area|perimeter|circle|triangle|rectangle|angle|volume/.test(t)) return "geometry";
+  if (/mean|median|mode|range|average|data|dataset/.test(t)) return "statistics";
+  if (/probabilit|chance|likel|odds/.test(t))                return "probability";
+  if (/sin|cos|tan|trig|soh|cah|toa|hypotenuse/.test(t))     return "trigonometry";
+  if (/derivative|integral|differentiat|calcul|gradient/.test(t)) return "calculus";
+  return null;
+}
+
+// Session
+let session = { fallbackCount: 0, pendingIntent: null, escalated: false };
+
+function resetSession() { session = { fallbackCount: 0, pendingIntent: null, escalated: false }; }
+
+function processMessage(text) {
+  if (!text || !text.trim()) return { text: "Please type a message so I can help you! 😊" };
+  const input = text.trim();
+
+  if (session.escalated) {
+    return {
+      text: "You have already been connected to a human teacher/mentor. Tap the button below or click *↺ Reset* to start a new session.",
+      wa: true
+    };
+  }
+
+  for (const p of DISHONESTY) {
+    if (p.test(input)) {
+      session.escalated = true;
+      return {
+        text: "⚠️ I'm here to *help you learn*, not to complete assignments or exams for you — that would be academic dishonesty and wouldn't help you grow!\n\nI'm connecting you with a *teacher or mentor* right now. Tap below to reach them on WhatsApp! 👇",
+        wa: true,
+        reason: "academic_dishonesty"
+      };
+    }
+  }
+
+  for (const p of PERSONAL) {
+    if (p.test(input)) {
+      session.escalated = true;
+      return {
+        text: "💙 I can hear that you're going through something difficult. I'm an academic support bot, so this is beyond what I can properly help with.\n\nI'm connecting you to a *teacher or mentor* who can give you the right support. You are not alone. Tap below 👇",
+        wa: true,
+        reason: "personal"
+      };
+    }
+  }
+
+  for (const p of GREETING_PAT) {
+    if (p.test(input)) {
+      session.fallbackCount = 0;
+      return { text: "👋 Hey there! I'm *Study Buddy Bot* — your Maths tutor!\n\nI can help you with:\n• 📐 *Explaining* concepts clearly\n• 🔢 *Breaking down* formulas step by step\n• 🧮 *Practice questions* for any topic\n\nTopics: Algebra, Fractions, Geometry, Statistics, Probability, Trigonometry, Calculus\n\nWhat would you like help with today? 😊" };
+    }
+  }
+
+  const isHelp     = HELP_PAT.some(p => p.test(input));
+  const isExplain  = EXPLAIN_PAT.some(p => p.test(input));
+  const isPractice = PRACTICE_PAT.some(p => p.test(input));
+  const topic      = detectTopic(input);
+
+  if (session.pendingIntent && topic) {
+    const intent = session.pendingIntent;
+    session.pendingIntent = null; session.fallbackCount = 0;
+    return { text: respond(topic, intent) };
+  }
+
+  if (topic && (isExplain || isPractice || isHelp || input.split(" ").length <= 3)) {
+    session.fallbackCount = 0;
+    return { text: respond(topic, isPractice ? "practice" : "explain") };
+  }
+
+  if (isExplain || isPractice || isHelp) {
+    session.fallbackCount = 0;
+    session.pendingIntent = isPractice ? "practice" : "explain";
+    return { text: "Sure! What subject or topic do you need help with? 📚\n\n_(e.g. algebra, fractions, geometry, statistics, probability, trigonometry, calculus)_" };
+  }
+
+  session.fallbackCount++;
+  if (session.fallbackCount >= 2) {
+    session.escalated = true;
+    return {
+      text: "😅 I'm having trouble understanding your question after a couple of tries.\n\nNo worries — I'm connecting you to a *teacher or mentor* who can help you better! Tap below 👇",
+      wa: true,
+      reason: "fallback"
+    };
+  }
+
+  return { text: "Sorry, I don't quite understand. Could you tell me what subject this is about, or try asking in a different way? 🤔\n\n_(e.g. \"Explain algebra\", \"Practice questions for geometry\")_" };
+}
+
+function respond(topic, intent) {
+  const d = TOPICS[topic];
+  if (!d) return `Hmm, I don't have notes on that topic yet. Try: ${Object.keys(TOPICS).join(", ")} 📚`;
+  return intent === "practice" ? d.practice[0] : d.explain;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  UI LAYER
+// ════════════════════════════════════════════════════════════════
+
+const QUICK = {
+  default: [
+    { label: "📐 Explain a topic",          text: "Can you explain a topic?" },
+    { label: "🧮 Give me practice questions", text: "Give me practice questions" },
+    { label: "💡 Break down a formula",     text: "Break down a formula step by step" },
+  ],
+  afterExplain: [
+    { label: "🧮 Practice questions",     text: "Give me practice questions for this topic" },
+    { label: "📖 Explain another topic",  text: "Can you explain another topic?" },
+  ],
+};
+
+let waiting = false;
+
+function esc(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function md(text) {
+  text = esc(text);
+  text = text.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  text = text.replace(/\*(.+?)\*/g,     "<b>$1</b>");
+  text = text.replace(/_([^_]+)_/g,     "<em>$1</em>");
+  return text;
+}
+
+function waURL(reason) {
+  let msg = "Hi, I need help with my studies. I was referred by Study Buddy Bot.";
+  if (reason === "academic_dishonesty") msg = "Hi, a student needs guidance about academic integrity (referred by Study Buddy Bot).";
+  if (reason === "personal")            msg = "Hi, a student needs personal/emotional support (referred by Study Buddy Bot).";
+  if (reason === "fallback")            msg = "Hi, a student couldn't get help from Study Buddy Bot and needs a tutor.";
+  return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
+}
+
+function appendMsg(role, response) {
+  const chat = document.getElementById("chat");
+  const row  = document.createElement("div");
+  row.className = `row ${role}`;
+
+  const av = document.createElement("div");
+  av.className = "mavatar";
+  av.textContent = role === "bot" ? "📚" : "🧑‍🎓";
+
+  const bub = document.createElement("div");
+  bub.className = "bubble";
+
+  if (typeof response === "string") {
+    bub.innerHTML = md(response);
+  } else {
+    // bot response object
+    bub.innerHTML = md(response.text);
+    if (response.wa) {
+      const card = document.createElement("div");
+      card.className = "wa-card";
+      card.innerHTML = `
+        <p>Your teacher/mentor is ready to help you on WhatsApp:</p>
+        <a class="wa-btn" href="${waURL(response.reason)}" target="_blank" rel="noopener">
+          <svg class="wa-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.334.101 11.893c0 2.096.549 4.14 1.595 5.945L0 24l6.335-1.652c1.746.943 3.71 1.444 5.71 1.447h.006c6.585 0 11.946-5.336 11.949-11.896.002-3.176-1.24-6.165-3.48-8.45zm-8.475 18.3h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.975 1.005-3.647-.235-.374a9.835 9.835 0 01-1.516-5.26C2.108 6.409 6.6 2 12.045 2c2.635 0 5.112 1.02 6.977 2.874a9.74 9.74 0 012.895 6.937c-.003 5.408-4.42 9.938-9.87 9.938zm5.42-7.44c-.297-.148-1.758-.867-2.031-.967-.272-.099-.47-.148-.667.148-.198.297-.767.967-.94 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.457.13-.605.134-.133.297-.347.446-.52.149-.174.198-.298.297-.497.099-.198.05-.371-.025-.52-.074-.148-.667-1.611-.913-2.206-.24-.579-.485-.5-.667-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.793.371-.272.297-1.04 1.016-1.04 2.479 0 1.463 1.065 2.876 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.263.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+          </svg>
+          Chat with Teacher on WhatsApp
+        </a>`;
+      bub.appendChild(card);
+    }
+  }
+
+  row.appendChild(av);
+  row.appendChild(bub);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  const chat = document.getElementById("chat");
+  const row  = document.createElement("div");
+  row.className = "typing-row"; row.id = "typ";
+  const av = document.createElement("div");
+  av.className = "mavatar";
+  av.style.cssText = "width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;";
+  av.textContent = "📚";
+  const bub = document.createElement("div");
+  bub.className = "typing-bub";
+  bub.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  row.appendChild(av); row.appendChild(bub);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function removeTyping() { const e = document.getElementById("typ"); if (e) e.remove(); }
+
+function setQR(set) {
+  const c = document.getElementById("qr");
+  c.innerHTML = "";
+  (QUICK[set] || []).forEach(r => {
+    const b = document.createElement("button");
+    b.className = "qbtn"; b.textContent = r.label;
+    b.onclick = () => sq(r.text);
+    c.appendChild(b);
+  });
+}
+
+async function send() {
+  if (waiting) return;
+  const inp  = document.getElementById("inp");
+  const text = inp.value.trim();
+  if (!text) return;
+
+  inp.value = ""; inp.style.height = "auto";
+  appendMsg("user", text);
+  document.getElementById("qr").innerHTML = "";
+  document.getElementById("sbtn").disabled = true;
+  waiting = true; showTyping();
+
+  await new Promise(r => setTimeout(r, 320 + Math.random() * 380));
+
+  removeTyping();
+  const response = processMessage(text);
+  appendMsg("bot", response);
+
+  if (response.wa) {
+    setQR(""); // no quick replies after escalation
+  } else if (response.text.includes("practice") || response.text.includes("🧮")) {
+    setQR("afterExplain");
+  } else {
+    setQR("default");
+  }
+
+  waiting = false;
+  document.getElementById("sbtn").disabled = false;
+  inp.focus();
+}
+
+function sq(text) {
+  document.getElementById("inp").value = text;
+  send();
+}
+
+function resetChat() {
+  resetSession();
+  document.getElementById("chat").innerHTML = "";
+  document.getElementById("qr").innerHTML  = "";
+  waiting = false;
+  document.getElementById("sbtn").disabled = false;
+  welcome();
+}
+
+document.getElementById("inp").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+document.getElementById("inp").addEventListener("input", function () {
+  this.style.height = "auto";
+  this.style.height = Math.min(this.scrollHeight, 110) + "px";
+});
+
+function welcome() {
+  setTimeout(() => {
+    appendMsg("bot", {
+      text: "👋 Hey! I'm *Study Buddy Bot* — your personal Maths tutor! 🎉\n\nI can help you:\n• 📐 *Understand* any maths concept clearly\n• 🔢 *Break down* formulas step by step\n• 🧮 *Get practice questions* on any topic\n\nTap a topic above, or just type your question below! 😊"
+    });
+    setQR("default");
+  }, 350);
+}
+
+welcome();
+</script>
+</body>
+</html>
